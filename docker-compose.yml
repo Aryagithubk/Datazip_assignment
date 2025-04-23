@@ -1,0 +1,34 @@
+version: "3.8"
+services:
+  olake:
+    container_name: olake
+    image: alpine:latest
+    volumes:
+      - ~/olake-pipeline/olake:/opt/olake
+    entrypoint: ["/opt/olake/olake-binary"]
+    depends_on:
+      - hive-metastore
+      - mysql
+
+  hive-metastore:
+    image: bitnami/hive-metastore:3.1.3
+    ports:
+      - "9083:9083"
+    environment:
+      - HIVE_METASTORE_PORT_NUMBER=9083
+      - HIVE_METASTORE_DATABASE_HOST=metastore-db
+      - HIVE_METASTORE_DATABASE_NAME=metastore
+      - HIVE_METASTORE_DATABASE_USER=hive
+      - HIVE_METASTORE_DATABASE_PASSWORD=hivepassword
+
+  mysql:
+    image: mysql:5.7
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: orders_db
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql-scripts:/docker-entrypoint-initdb.d

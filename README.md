@@ -76,5 +76,9 @@ spark-sql \
 
 This is where I hit a major roadblock. The command executed fine, but when I tried querying the orders table, I didn’t get any data back. The issue was rooted in a few configuration details that I hadn’t accounted for in the Spark setup. Despite my best efforts to adjust the catalog configurations, I couldn’t fetch the data from the Iceberg table as expected.
 
-I tried several troubleshooting steps, including checking the Hive Metastore connection, verifying Iceberg paths, and even re-syncing the data. Unfortunately, after spending quite a bit of time debugging this issue, I couldn’t retrieve the synced data through Spark SQL, which meant I was unable to proceed with verifying the complete pipeline.
+I tried several troubleshooting steps, including checking the Hive Metastore connection, verifying Iceberg paths, and even re-syncing the data. Unfortunately, after spending quite a bit of time debugging this issue, I couldn’t retrieve the synced data through Spark SQL, which meant I was unable to proceed with verifying the complete pipeline due to less time.
 
+![Screenshot 1](images/1.png)
+![Screenshot 2](images/2.png)
+![Screenshot 3](images/3.png)
+![Screenshot 4](images/4.png)

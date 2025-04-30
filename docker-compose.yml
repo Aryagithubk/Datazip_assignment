@@ -22,25 +22,16 @@ services:
       - "--binlog_expire_logs_seconds=604800" # Set binary log expiration to 7 days (604800 seconds).
       - "--skip-host-cache" # Disable host cache for DNS resolution.
       - "--skip-name-resolve" # Disable DNS host name resolution to improve performance.
-
     volumes:
       - mysql-data:/var/lib/mysql # Mount persistent storage volume for MySQL data.
     networks:
       - mysql-cluster # Connect the container to the custom network "mysql-cluster".
     healthcheck:
-      test: [
-          "CMD",
-          "mysqladmin",
-          "ping",
-          "-h",
-          "localhost",
-          "-u",
-          "root",
-          "-proot",
-        ] # Healthcheck command to ensure MySQL is responsive.
-      interval: 10s # Check health every 10 seconds.
-      timeout: 5s # Each health check attempt must complete within 5 seconds.
-      retries: 10 # Allow up to 10 retries before marking the container as unhealthy.
+    test: ["CMD", "mysql", "-h", "localhost", "-u", "root", "-proot", "-e", "SELECT 1"]
+    interval: 10s
+    timeout: 5s
+    retries: 10
+
 
   # Service to initialize the replication (CDC) user.
   init-cdc-user:
@@ -79,7 +70,6 @@ services:
       mysql -h primary_mysql -P 3306 -u root -proot main -e 'INSERT INTO sample_table (name) VALUES (\"sample_data\");'; \
       echo 'Data insertion complete!'; \
       tail -f /dev/null"
-
     restart: "no" # Do not restart this container after execution.
     networks:
       - mysql-cluster # Use the same network for connectivity.
@@ -100,17 +90,45 @@ services:
                echo 'Listing MySQL binaries in /usr/bin:' && ls -l /usr/bin/mysql* && \
                echo 'Attempting to run lomysqlbing:' && \
                # Attempt to execute mysqlbinlog command on the first binary log file.
-               /usr/bin/mysqlbinlog /var/lib/mysql/mysql-bin.000001 || echo 'mysqlbinlog not found!'"  # If mysqlbinlog is unavailable, print a message.
+               /usr/bin/mysqlbinlog /var/lib/mysql/mysql-bin.000001 || echo 'mysqlbinlog not found!'"
     volumes:
       - mysql-data:/var/lib/mysql # Mount the MySQL data volume to access binary logs.
     networks:
       - mysql-cluster # Connect to the same custom network.
     restart: "no" # Do not restart this container automatically.
 
-# Define the custom network for MySQL services.
+  # Hive Metastore Service
+  hive-metastore:
+  image: apache/hive:4.0.0
+  container_name: hive-metastore
+  environment:
+    - HIVE_METASTORE_URI=thrift://hive-metastore:9083 # URI to access Hive Metastore.
+    - HIVE_METASTORE_DB=main # Database for the Hive Metastore.
+    - HIVE_METASTORE_PASSWORD=root # Password for the metastore DB connection.
+  volumes:
+    - /home/arya/olake_project/hive-site.xml:/opt/hive/conf/hive-site.xml # Volume for Hive configuration.
+    - ./logs:/opt/hive/logs # Volume for Hive logs.
+  networks:
+    - mysql-cluster # Connect to the same MySQL network for database access.
+  ports:
+    - "9083:9083" # Expose the Hive Metastore Thrift service port.
+  depends_on:
+    - primary_mysql # Wait for MySQL to be ready before starting Hive Metastore.
+  entrypoint: >
+    /bin/sh -c "
+    echo 'Waiting for MySQL to be ready...';
+    until mysql -h primary_mysql -u root -proot -e 'SELECT 1'; do echo 'Waiting...'; sleep 2; done;
+    echo 'Starting Hive Metastore...';
+    /opt/hive/bin/hive --service metastore
+    "
+  restart: "always" # Restart Hive Metastore if it crashes.
+# Restart Hive Metastore if it crashes.
+
+# Define the custom network for MySQL and Hive services.
 networks:
   mysql-cluster:
 
-# Define persistent volumes to store MySQL data.
+# Define persistent volumes to store MySQL and Hive data.
 volumes:
   mysql-data:
+  hive-data:
